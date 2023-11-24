@@ -1,0 +1,88 @@
+Работа с тестовым веб-приложением
+- Добавление проверок Pod
+Добавлены в web-pod.yaml:
+    readinessProbe:
+      httpGet:
+        path: /index.html
+        port: 80
+Результат kubectl get pod/web:
+NAME   READY   STATUS    RESTARTS   AGE
+web    0/1     Running   0          2m31s
+
+Результат kubectl describe pod/web:
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             False
+  ContainersReady   False
+  PodScheduled      True
+События:
+  Normal   Started    55s               kubelet            Started container web
+  Warning  Unhealthy  3s (x8 over 54s)  kubelet            Readiness probe failed: Get "http://10.244.0.49:80/index.html": dial tcp 10.244.0.49:80: connect: connection refused
+Добавлено в web-pod.yaml
+livenessProbe:
+    tcpSocket: { port: 8000 }
+Применить конфигурацию не удалось из-за ошибки. Пришлось использовать опцию --force.
+- Создание объекта Deployment
+Создан web-deployment.yaml
+Выполнены рекомендации по заполнению файла
+Копирован в template конфигурация пода из web-pod.yaml
+Под не запустился из-за ошибки
+  Warning  Unhealthy  0s (x11 over 77s)  kubelet            Readiness probe failed: Get "http://10.244.0.51:80/index.html": dial tcp 10.244.0.51:80: connect: connection refused
+Изменил порт с 80 на 8000 в readinessProbe и кол-во replicas с 1 на 3 в файле по рекомендации.
+
+Применил deployment
+❯ kubectl apply -f web-deploy.yaml
+deployment.apps/web configured
+- Добавление сервисов в кластер ( ClusterIP )
+Создал и приминил манифест web-svc-cip.yaml для сервиса в директории kubernetes-networks
+Проверил результат
+❯ kubectl get services
+NAME          TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)   AGE
+kubernetes    ClusterIP   10.96.0.1      <none>        443/TCP   13d
+web-svc-cip   ClusterIP   10.98.244.17   <none>        80/TCP    63m
+
+Выполнил curl http://10.98.244.17/index.html, команда выполнилась успешно
+ping не прошел на указанные адрес, как и указано в материале.
+arp -en
+root@minikube:~# arp -en | grep 10.98.244.17
+root@minikube:~# 
+root@minikube:~# ip addr show | grep 10.98.244.17
+root@minikube:~# 
+root@minikube:~# iptables --list -nv -t nat | grep 10.98.244.17
+    0     0 KUBE-SVC-6CZTMAROCN3AQODZ  tcp  --  *      *       0.0.0.0/0            10.98.244.17         /* default/web-svc-cip cluster IP */ tcp dpt:80
+   11   660 KUBE-MARK-MASQ  tcp  --  *      *      !10.244.0.0/16        10.98.244.17         /* default/web-svc-cip cluster IP */ tcp dpt:80
+
+- Включение режима балансировки IPVS
+Выключил minikube и запустил новый с параметром  --extra-config=kube-proxy.proxy-mode=ipvs
+Исправил ConfigMap
+ipvs:       
+  strictARP: true
+mode: "ipvs"
+Удалил под kubectl --namespace kube-system delete pod --selector='k8s-app=kube-proxy'
+После выполнения команды minikube ssh и выполнения команды iptables --list -nv -t nat получил ошибку:
+docker@minikube:~$ iptables --list -nv -t nat
+Fatal: can't open lock file /run/xtables.lock: Permission denied
+Очевидно проблема в том, что требуется выполнить sudo su -
+Выполнил sudo su - команда iptables --list -nv -t nat выполнилась
+Создал файл /tmp/iptables.cleanup с инструкциями и применил командой iptables-restore
+Настроил MetalLB, добавил маршрут. Всё работает.
+Через configmap реализовать создание пула адресов не удалось. Большая часть ссылок в методичке не работает.
+Настроил lb для получения адреса из имени в кластере coredns
+
+❯ kubectl describe ingress web
+Name:             web
+Labels:           <none>
+Namespace:        default
+Address:          192.168.49.2
+....
+
+❯ curl https://172.17.255.2/web/index.html -k
+<html>
+<head/>
+<body>
+<!-- IMAGE BEGINS HERE -->
+<font size="-3">
+...
+
+Все остальное тоже было выполнено.
