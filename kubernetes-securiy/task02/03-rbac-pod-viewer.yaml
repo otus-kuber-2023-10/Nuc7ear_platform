@@ -1,0 +1,24 @@
+# Cluster Role get list watch for pod in kubernetes cluster
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus-pod-viewer
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+---
+# Cluster role binding to prometheus-pod-viewer get for all sa in namespace prometheus Cluster role rights
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus-pod-viewer
+  namespace: prometheus
+subjects:
+- kind: Group
+  name: system:serviceaccounts:prometheus
+  namespace: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus-pod-viewer
