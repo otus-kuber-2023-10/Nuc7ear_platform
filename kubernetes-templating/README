@@ -1,0 +1,14 @@
+Для использования chartmuseum потребовалось дополнить файл values.yaml настройками и создать secret.
+Для использования развернутого в домене chartmuseum.dookee.ru требуется использовать учетные данные.
+Получить учетные данные и записать их в переменные можно выполнив:
+export HELM_REPO_USERNAME=$(echo -n 'bXJjaGFydG11c2V1bQ=='|base64 -d)
+export HELM_REPO_USERNAME=$(echo -n 'aWVjYWg1b29tb28wdGhlb0c0ZG8='|base64 -d)
+Добавляем репозиторий:
+helm repo add chartmuseum-dookee https://chartmuseum.dookee.ru --username=$HELM_REPO_USERNAME --password=$HELM_REPO_PASSWORD
+Для push в chartmuseum потребуется плагин cm-push для helm, установить плагин можно командой:
+helm plugin install https://github.com/chartmuseum/helm-push
+Пуш в репозиторий можно выполнить командой:
+helm cm-push <chart dir> <repository>
+Пример: helm cm-push grafana chartmuseum-dookee
+Установить добавленный чарт с grafana из примера можно выполнив:
+helm install grafana chartmuseum-dookee/grafana --namespace grafana --create-namespace --wait

@@ -1,0 +1,104 @@
+repositories:
+  - name: stable
+    url: https://charts.helm.sh/stable
+
+releases:
+  - name: nginx-ingress
+    namespace: ingress-nginx
+    chart: stable/nginx-ingress
+    version: 3.36.0
+    values:
+      - controller:
+          service:
+            externalTrafficPolicy: Local
+          config:
+            use-forwarded-headers: "true"
+            compute-full-forwarded-for: "true"
+            use-proxy-protocol: "true"
+            proxy-real-ip-cidr: "10.0.0.0/8"
+            enable-vts-status: "true"
+            enable-modsecurity: "false"
+            enable-custom-errors: "false"
+            http-snippet: |
+              server_tokens off;
+              add_header X-Frame-Options SAMEORIGIN;
+              add_header X-Content-Type-Options nosniff;
+              add_header X-XSS-Protection "1; mode=block";
+              add_header Referrer-Policy no-referrer-when-downgrade;
+              add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+              add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none';";
+              add_header Permissions-Policy "geolocation=(),midi=(),sync-xhr=(),microphone=(),camera=(),magnetometer=(),gyroscope=(),fullscreen=(self),payment=()";
+          metrics:
+            enabled: true
+            serviceMonitor:
+              enabled: true
+              namespace: monitoring
+              interval: 30s
+    set:
+      - name: "controller.service.type"
+        value: ClusterIP
+      - name: "controller.service.annotations.service.beta.kubernetes.io/aws-load-balancer-internal"
+        value: true
+      - name: "controller.service.annotations.service.beta.kubernetes.io/aws-load-balancer-connection-idle-timeout"
+        value: 60
+      - name: "controller.service.annotations.service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled"
+        value: true
+      - name: "controller.service.annotations.service.beta.kubernetes.io/aws-load-balancer-type"
+        value: "nlb"
+      - name: "controller.service.annotations.external-dns.alpha.kubernetes.io/hostname"
+        value: "example.com"
+      - name: "controller.service.annotations.external-dns.alpha.kubernetes.io/ttl"
+        value: "300"
+
+  - name: cert-manager
+    namespace: cert-manager
+    chart: jetstack/cert-manager
+    version: v1.5.4
+    values:
+      - installCRDs: true
+        prometheus:
+          enabled: true
+        ingressShim:
+          defaultIssuerName: letsencrypt-prod
+          defaultIssuerKind: ClusterIssuer
+    set:
+    - name: "extraArgs"
+      value: {--dns01-recursive-nameservers-only=false}
+
+  - name: harbor
+    namespace: harbor
+    chart: harbor/harbor
+    version: 1.7.0
+    values:
+    - externalURL: https://harbor.example.com/
+      expose:
+        type: ingress
+        tls:
+          secretName: harbor-tls
+          hosts:
+            core: harbor.example.com
+      persistence:
+        enabled: true
+        size: 50Gi
+      secrets:
+        secretKey: mysecretkey
+      trivy:
+        enabled: true
+        imagePullPolicy: IfNotPresent
+        scanner:
+          trivy:
+            image: aquasec/trivy:0.19.2
+            insecure: true
+            insecureRegistry:
+              - harbor.example.com
+            cacheDir: /data/trivy
+            debugMode: false
+    set:
+    - name: "expose.ingress.annotations.nginx.ingress.kubernetes.io/proxy-body-size"
+      value: 0
+    - name: "expose.ingress.annotations.nginx.ingress.kubernetes.io/proxy-read-timeout"
+      value: 3600
+    - name: "expose.ingress.annotations.nginx.ingress.kubernetes.io/proxy-send-timeout"
+      value: 3600
+    - name: "expose.ingress.annotations.nginx.ingress.kubernetes.io/proxy-connect-timeout"
+      value: 3600
