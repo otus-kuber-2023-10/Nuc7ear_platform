@@ -1,0 +1,13 @@
+ingress:
+  enabled: true
+  annotations:
+    kubernetes.io/ingress.class: nginx
+  path: /
+  hostname: kibana.dookee.ru
+nodeSelector:
+  yandex.cloud/node-group-id: cata1e9f747s5rn0s64b
+tolerations:
+  - key: node-role
+    operator: Equal
+    value: infra
+    effect: NoSchedule

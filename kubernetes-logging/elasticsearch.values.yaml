@@ -1,0 +1,35 @@
+master:
+  nodeSelector:
+    yandex.cloud/node-group-id: cata1e9f747s5rn0s64b
+  tolerations:
+    - key: node-role
+      operator: Equal
+      value: infra
+      effect: NoSchedule
+
+data:
+  nodeSelector:
+    yandex.cloud/node-group-id: cata1e9f747s5rn0s64b
+  tolerations:
+    - key: node-role
+      operator: Equal
+      value: infra
+      effect: NoSchedule
+
+coordinating:
+  nodeSelector:
+    yandex.cloud/node-group-id: cata1e9f747s5rn0s64b
+  tolerations:
+    - key: node-role
+      operator: Equal
+      value: infra
+      effect: NoSchedule
+
+ingest:
+  nodeSelector:
+    yandex.cloud/node-group-id: cata1e9f747s5rn0s64b
+  tolerations:  
+    - key: node-role
+      operator: Equal
+      value: infra
+      effect: NoSchedule
